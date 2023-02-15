@@ -4,6 +4,7 @@ depth = 20;
 $fn = 20;
 
 include <filler-profile-brace.scad>;
+include <extrusions.scad>;
 
 module plate(radius = 1, thickness = 2, width = width, depth = depth) {
   // plate for top of printer
@@ -14,23 +15,26 @@ module plate(radius = 1, thickness = 2, width = width, depth = depth) {
   }
 }
 
-translate([ 20, -10, 2 ]) hull() {
-  translate([ 2, 2, 0 ]) sphere(2);
-  translate([ 2, 22, 0 ]) sphere(2);
-  translate([ 2, 22, -22 ]) sphere(2);
+module load_bearing_corner() {
+  translate([ 20, -10, 2 ]) hull() {
+    translate([ 2, 2, 0 ]) sphere(2);
+    translate([ 2, 22, 0 ]) sphere(2);
+    translate([ 2, 22, -22 ]) sphere(2);
+  }
+
+  translate([ -20, 10, 2 ]) hull() {
+    translate([ 2, 2, 0 ]) sphere(2);
+    translate([ 42, 2, 0 ]) sphere(2);
+    translate([ 42, 2, -22 ]) sphere(2);
+  }
 }
 
-translate([ -20, 10, 2 ]) hull() {
-  translate([ 2, 2, 0 ]) sphere(2);
-  translate([ 42, 2, 0 ]) sphere(2);
-  translate([ 42, 2, -22 ]) sphere(2);
-}
-
+// arm segments
 segments = [
-  [ [ 2, 2, 4 ], [ 2, -18, 4 ], [ 42, -18, 4 ], [ 42, 2, -2 ] ],
-  [ [ 18, -8, 50 ], [ 18, 10, 50 ], [ 46, -8, 35 ], [ 46, 10, 30 ] ],
-  [ [ 40, 16, 78 ], [ 40, 0, 82 ], [ 60, 16, 58 ], [ 60, -4, 62 ] ],
-  [ [ 75, 28, 117 ], [ 75, 28, 79 ], [ 75, -2.5, 117 ], [ 75, -2.5, 79 ] ]
+  [ [ 2, 2, 4 ], [ 2, -18, 4 ], [ 42, -18, 4 ], [ 42, 2, -18 ] ],
+  [ [ 18, 0, 50 ], [ 18, 17, 50 ], [ 46, -3, 35 ], [ 46, 15, 30 ] ],
+  [ [ 40, 25, 78 ], [ 40, 8, 78 ], [ 60, 25, 58 ], [ 60, 7, 62 ] ],
+  [ [ 75, 38, 117 ], [ 75, 38, 79 ], [ 75, 7, 117 ], [ 75, 7, 79 ] ]
 ];
 
 // arm
@@ -46,9 +50,9 @@ module arm() {
 }
 
 module screw_insets() {
-  translate([ -20, -10, 2 ]) for (x = [ 10, 30 ]) {
-    translate([ x, 10, 2 ]) cylinder(100, 5, 5);
-    translate([ x, 10, 0 ]) cylinder(100, 2, 2);
+  translate([ -20, -10, 1.5 ]) for (x = [ 10, 30 ]) {
+    translate([ x, 10, 2 ]) cylinder(50, 5, 5);
+    translate([ x, 10, 0 ]) cylinder(90, 2.5, 2.5);
   }
 }
 
@@ -57,55 +61,29 @@ module base_plate() {
       plate(thickness = 4, width = 44, depth = 24, radius = 2);
 }
 
-difference() {
-  union() {
-    base_plate();
-    arm();
-  }
-  union() {
-    screw_insets();
-    for (p = [ [ 8, 30, 31, 108 ], [ 25, 30, 64, 119 ], [ 45, 50, 93, 125 ] ])
-      translate([ p[0], p[1], p[2] ]) rotate([ 90, p[3], 0 ]) hull() {
-        cylinder(50, 7, 7);
-        translate([ 15, 0, 0 ]) cylinder(50, 7, 7);
-      }
-  }
-  translate([ -20, -10, -38 ]) cube([ 40, 20, 40 ]);
-}
-
-*color("#404040") translate([ -20, -10, 0 ]) plate();
-
-*color("#404040") translate([ 0, 0, -15 ]) linear_extrude(15) 2040_profile();
-
-translate([ 55, 40, 80 ]) rotate([ 0, 0, 90 ]) brace(screw_dia = 0);
-
-module 2040_profile() {
-  union() {
-    translate([ -10, 0, 0 ]) 2020_profile();
-    translate([ 10, 0, 0 ]) 2020_profile();
-  }
-}
-module 2020_profile() {
-  difference() {
-
-    square([ 20, 20 ], center = true);
-    square([ 17, 17 ], center = true);
-
-    square([ 40, 5.26 ], center = true);
-    rotate([ 0, 0, 90 ]) square([ 40, 5.26 ], center = true);
-  }
-
+// Full Assembly
+module assembly() {
   difference() {
     union() {
-      square([ 7.32, 7.32 ], center = true);
-      rotate([ 0, 0, 45 ]) square([ 1.5, 25 ], center = true);
-      rotate([ 0, 0, -45 ]) square([ 1.5, 25 ], center = true);
+      base_plate();
+      load_bearing_corner();
+      arm();
+      translate([ 55, 50, 80 ]) rotate([ 0, 0, 90 ]) brace(screw_dia = 0);
     }
-    circle(d = 5, $fn = 16);
+    union() {
+      screw_insets();
+      // cutouts to both save on material and add some rigidity (via the internal outlines)
+      for (p = [ [ 8, 30, 31, 108 ], [ 25, 40, 64, 119 ], [ 46, 50, 93, 128 ] ])
+        translate([ p[0], p[1], p[2] ]) rotate([ 90, p[3], 0 ]) hull() {
+          cylinder(50, 6.5, 6.5);
+          translate([ 15, 0, 0 ]) cylinder(50, 6.5, 6.5);
+        }
+    }
+    translate([ -20, -10, -38 ]) cube([ 40, 20, 40 ]);
   }
-
-  translate([ 7.9975, 7.9975, 0 ]) square([ 4.005, 4.005 ], center = true);
-  translate([ -7.9975, 7.9975, 0 ]) square([ 4.005, 4.005 ], center = true);
-  translate([ 7.9975, -7.9975, 0 ]) square([ 4.005, 4.005 ], center = true);
-  translate([ -7.9975, -7.9975, 0 ]) square([ 4.005, 4.005 ], center = true);
 }
+
+assembly();
+
+// auxiliary stuff
+*color("#404040") translate([ 0, 0, -15 ]) linear_extrude(15) 2040_profile();
